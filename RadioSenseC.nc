@@ -39,8 +39,8 @@ implementation {
    * Device is booted and ready, start radio.
    */
   event void Boot.booted() {
-    // Blue LED2 indicates the startup process
-    call Leds.led2On();
+    // Red LED0 indicates the startup process
+    call Leds.led0On();
     // start radio
     call AMControl.start();
     initPacket();
@@ -94,6 +94,7 @@ implementation {
     msg_rssi_t* rssiMsg;
     rssiMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
 
+    # indicate with blue LED
     call Leds.led2On();
     if (TOS_NODE_ID == ROOT_NODE_ADDR) {
       // root node prints its own RSSI array
