@@ -1,5 +1,5 @@
 COMPONENT=RadioSenseAppC
-TINYOS_ROOT_DIR?=/home/eddie/bin/tinyos-main
+TINYOS_ROOT_DIR?=/usr/local/src/tinyos
 
 include $(TINYOS_ROOT_DIR)/Makefile.include
 
