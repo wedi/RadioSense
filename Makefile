@@ -1,0 +1,10 @@
+COMPONENT=RadioSenseAppC
+TINYOS_ROOT_DIR?=/home/eddie/bin/tinyos-main
+
+include $(TINYOS_ROOT_DIR)/Makefile.include
+
+CFLAGS += -I$(TINYOS_OS_DIR)/lib/printf
+CFLAGS += -DNEW_PRINTF_SEMANTICS
+
+#CFLAGS+=-DCC2420_DEF_CHANNEL=11
+CFLAGS+=-DCC2420_DEF_RFPOWER=7
