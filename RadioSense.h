@@ -2,12 +2,13 @@
 #define RADIOSENSE_H
 
 // Enable debug logging?
+#ifndef DEBUG
 #define DEBUG 0
+#endif
 
 enum {
   AM_MSG_T_RSSI = 1,
   ROOT_NODE_ADDR = 1,
-  NODE_COUNT = 4,
   #if DEBUG
     SEND_DELAY = 50,
     WATCHDOG_TOLERANCE_MILLI = 100,
