@@ -13,12 +13,16 @@ implementation {
   components CC2420PacketC;
   components new AMSenderC(AM_MSG_T_RSSI);
   components new AMReceiverC(AM_MSG_T_RSSI);
-  components new TimerMilliC() as SendDelayTimer;
-  components new TimerMilliC() as WatchDogTimer;
-  components LocalTimeMilliC as LocalTime;
-  components PrintfC;
-  components SerialStartC;
-  components PlatformSerialC;
+
+  #if IS_ROOT_NODE
+    components new TimerMilliC() as WatchDogTimer;
+    components PlatformSerialC;
+    components SerialStartC;
+  #endif
+
+  #if DEBUG
+    components SerialPrintfC;
+  #endif
 
   App.Boot -> MainC;
   App.Leds -> LedsC;
@@ -27,8 +31,9 @@ implementation {
   App.CC2420Packet -> CC2420PacketC;
   App.AMSend -> AMSenderC;
   App.Receive -> AMReceiverC;
-  App.SendDelayTimer -> SendDelayTimer;
-  App.WatchDogTimer -> WatchDogTimer;
-  App.LocalTime -> LocalTime;
-  App.UartByte -> PlatformSerialC;
+
+  #if IS_ROOT_NODE
+    App.WatchDogTimer -> WatchDogTimer;
+    App.UartByte -> PlatformSerialC;
+  #endif
 }
