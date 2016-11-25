@@ -41,10 +41,6 @@ implementation {
     msg_rssi_t printMsg;
   #endif
 
-  #if DEBUG
-    uint32_t timestampLastPacket = 0;
-  #endif
-
 
 
   /* * Boot sequence events  * * * * * * * * * * * * * * * * * * * * */
@@ -147,14 +143,6 @@ implementation {
     int8_t rssi;
     #if IS_ROOT_NODE
       msg_rssi_t* pl;
-    #endif
-
-    #if DEBUG
-      /*uint32_t newPacketTimestamp = call LocalTime.get();
-      uint32_t timeSinceLast = newPacketTimestamp - timestampLastPacket;
-      DPRINTF(("Time since last package from %u is %lu.\n", lastSeenNodeID,
-             timeSinceLast));
-      timestampLastPacket = newPacketTimestamp;*/
     #endif
 
     rssi = call CC2420Packet.getRssi(msg);
