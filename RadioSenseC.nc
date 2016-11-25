@@ -59,7 +59,9 @@ implementation {
     call AMControl.start();
 
     rssiMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
-    initPacket();
+    // init packet
+    // reset RSSI values
+    memcpy(rssiMsg->rssi, rssi_template, NODE_COUNT+1);
     // make sure the node will not believe it's his turn
     // Neat: Setting unsigned var to -1 sets it to MAX
     lastSeenNodeID = -1;
@@ -130,21 +132,8 @@ implementation {
       DPRINTF(("Error sending data. Code: %u.\n", result));
     }
     // reset RSSI values
-    initPacket();
-    call Leds.led2Off();
-  }
-
-
-  /**
-   * Initialize msg Packet
-   */
-  inline void initPacket() {
-    //int8_t i;
-
     memcpy(rssiMsg->rssi, rssi_template, NODE_COUNT+1);
-    /*for (i = 0; i <= NODE_COUNT; ++i) {
-      rssiMsg->rssi[i] = INVALID_RSSI;
-    }*/
+    call Leds.led2Off();
   }
 
 
