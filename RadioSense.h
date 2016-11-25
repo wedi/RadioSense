@@ -18,7 +18,7 @@ enum {
 static const int rssi_template[32] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
 typedef nx_struct msg_rssi_t {
-  nx_uint32_t seq;
+  //nx_uint32_t seq;
   nx_int8_t rssi[NODE_COUNT];
 } msg_rssi_t;
 

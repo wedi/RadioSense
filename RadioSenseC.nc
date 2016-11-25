@@ -32,7 +32,7 @@ implementation {
 
   message_t packet;
   msg_rssi_t* rssiMsg;
-  uint32_t seq = 0;
+  //uint32_t seq = 0;
   am_addr_t lastSeenNodeID;
   uint8_t channel;
 
@@ -141,7 +141,6 @@ implementation {
   inline void initPacket() {
     //int8_t i;
 
-    ++rssiMsg->seq;
     memcpy(rssiMsg->rssi, rssi_template, NODE_COUNT+1);
     /*for (i = 0; i <= NODE_COUNT; ++i) {
       rssiMsg->rssi[i] = INVALID_RSSI;
@@ -225,7 +224,7 @@ implementation {
     #if DEBUG
     DPRINTF(("NodeID %u\n", lastSeenNodeID));
     DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
-    DPRINTF(("SEQ %lu\n", printMsg.seq));
+    //DPRINTF(("SEQ %lu\n", printMsg.seq));
     DPRINTF(("RSSI["));
     for (i = 0; i < NODE_COUNT; ++i) {
       DPRINTF(("%i ", printMsg.rssi[i]));
@@ -242,7 +241,7 @@ implementation {
     call UartByte.send(printMsgId);
     call UartByte.send(NODE_COUNT);
     // can be used to determine packet loss
-    call UartByte.send(printMsg.seq);
+    //call UartByte.send(printMsg.seq);
 
     // RSSI
     for (i = 0; i < NODE_COUNT; ++i) {
