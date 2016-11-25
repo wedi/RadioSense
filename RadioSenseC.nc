@@ -208,11 +208,6 @@ implementation {
     }
     DPRINTF(("]RSSI_END\n"));
     #else
-    // sync bytes (0xC0DE)
-    call UartByte.send(0xC);
-    call UartByte.send(0x0);
-    call UartByte.send(0xD);
-    call UartByte.send(0xE);
 
     // ID + node count
     call UartByte.send(printMsgId);
@@ -225,11 +220,11 @@ implementation {
       call UartByte.send(printMsg.rssi[i]);
     }
 
-    // trailer bytes (0xED0C)
-    call UartByte.send(0xE);
-    call UartByte.send(0xD);
-    call UartByte.send(0x0);
+    // sync bytes (0xC0DE)
     call UartByte.send(0xC);
+    call UartByte.send(0x0);
+    call UartByte.send(0xD);
+    call UartByte.send(0xE);
     #endif
     call Leds.led0Off();
   }
