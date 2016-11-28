@@ -20,7 +20,6 @@ implementation {
 
 /* * Declare tasks & functions * * * * * * * * * * * * * * * * * * * */
 
-  inline void initPacket();
   task void sendRssi();
   #if IS_ROOT_NODE
     task void printCollectedData();
@@ -34,7 +33,6 @@ implementation {
   msg_rssi_t* rssiMsg;
   //uint32_t seq = 0;
   am_addr_t lastSeenNodeID;
-  uint8_t channel;
 
   #if IS_ROOT_NODE
     am_addr_t printMsgId;
@@ -61,12 +59,11 @@ implementation {
     // make sure the node will not believe it's his turn
     // Neat: Setting unsigned var to -1 sets it to MAX
     lastSeenNodeID = -1;
-    channel = CC2420_DEF_CHANNEL;
   }
 
 
   /**
-   * Radio started, start watchdog timer on the root node.
+   * Radio started, start watchdog timer on the root node to wait for others.
    */
   event void AMControl.startDone(error_t err) {
     if (err == SUCCESS) {
@@ -76,6 +73,7 @@ implementation {
       #endif
       call Leds.set(0b010);  // red/green/blue
       DPRINTF(("Mote ready to rumble!\n"));
+
     } else {
       // error during radio startup, keep trying
       DPRINTF(("Couldn't start the radio. (Code: %u)\n", err));
@@ -106,7 +104,7 @@ implementation {
 
     #if IS_ROOT_NODE
       // root node prints its own RSSI array
-      printMsgId = ROOT_NODE_ADDR;
+      printMsgId = TOS_NODE_ID;
       printMsg = *rssiMsg;
       post printCollectedData();
     #endif
@@ -114,6 +112,7 @@ implementation {
     result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
     if (result != SUCCESS) {
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
+      // not resending, accept failure of cycle to avoid other problems
     } else {
       DPRINTF(("Sending...\n"));
     }
@@ -121,7 +120,7 @@ implementation {
 
 
   /**
-   * Broadcast sent, increase sequenz number
+   * Broadcast sent
    */
   event void AMSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
@@ -157,7 +156,7 @@ implementation {
     #if IS_ROOT_NODE
       printMsgId = lastSeenNodeID;
       pl = (msg_rssi_t*) payload;
-      printMsg = (msg_rssi_t) *pl;
+      printMsg = *pl;
       post printCollectedData();
       call WatchDogTimer.startOneShot(WATCHDOG_TOLERANCE);
       if (lastSeenNodeID == NODE_COUNT) {
@@ -190,10 +189,11 @@ implementation {
 
 
   /**
-   * Prints a nodes RSSI array
+   * Prints a nodes RSSI array.
    */
   task void printCollectedData() {
     int8_t i;
+
     call Leds.led0On();
 
     //am_addr_t id, uint32_t pkgSeq, nx_int8_t rssi[]
@@ -207,6 +207,7 @@ implementation {
       DPRINTF(("%i ", printMsg.rssi[i]));
     }
     DPRINTF(("]RSSI_END\n"));
+
     #else
 
     // ID + node count
@@ -225,7 +226,9 @@ implementation {
     call UartByte.send(0x0);
     call UartByte.send(0xD);
     call UartByte.send(0xE);
+
     #endif
+
     call Leds.led0Off();
   }
 

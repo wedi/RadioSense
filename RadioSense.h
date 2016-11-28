@@ -10,12 +10,19 @@ enum {
   AM_MSG_T_RSSI = 1,
 
   #if IS_ROOT_NODE
+    // Milliseconds. Set higher than necessary to be able to see the watchdog
+    // hitting from looking at the nodes. Could be as small as ~15 * NODE_COUNT.
     WATCHDOG_TOLERANCE = 500 * NODE_COUNT,
     WATCHDOG_INIT_TIME = 2000
   #endif
 };
 
-static const int rssi_template[32] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+// chose a number well above possible RSSI values but not 127
+// as that might have a different meaning somewhere else.
+static const int8_t rssi_template[32] = {81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81};
+#if NODE_COUNT > 32
+ #error You need to extend `rssi_template` when using more than 32 nodes!
+#endif
 
 typedef nx_struct msg_rssi_t {
   //nx_uint32_t seq;

@@ -1,4 +1,4 @@
- COMPONENT = RadioSenseAppC
+COMPONENT = RadioSenseAppC
 
 TINYOS_ROOT_DIR ?= /usr/local/src/tinyos
 include $(TINYOS_ROOT_DIR)/Makefile.include
@@ -28,9 +28,8 @@ CFLAGS += -DNODE_COUNT=$(NODE_COUNT)
 # Set the root node ID
 ROOT_NODE_ADDR ?= 1
 
-CFLAGS += -DROOT_NODE_ADDR=$(ROOT_NODE_ADDR)
-
-NODEID ?= 1   # is only set on make telosb install.NODEID
+# This is only set on make telosb install.NODEID. Assume 1 as default.
+NODEID ?= 1
 ifeq ($(NODEID),$(ROOT_NODE_ADDR))
     CFLAGS += -DIS_ROOT_NODE=1
     TOSMAKE_BUILD_DIR=build_root/$(TARGET)
