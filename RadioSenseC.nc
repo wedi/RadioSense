@@ -8,6 +8,7 @@ module RadioSenseC {
   uses interface SplitControl as AMControl;
   uses interface AMPacket;
   uses interface CC2420Packet;
+  uses interface CC2420Config;
   uses interface AMSend;
   uses interface Receive;
   #if IS_ROOT_NODE
@@ -20,6 +21,7 @@ implementation {
 
 /* * Declare tasks & functions * * * * * * * * * * * * * * * * * * * */
 
+  inline void switch_channel();
   task void sendRssi();
   #if IS_ROOT_NODE
     task void printCollectedData();
@@ -33,6 +35,7 @@ implementation {
   msg_rssi_t* rssiMsg;
   //uint32_t seq = 0;
   am_addr_t lastSeenNodeID;
+  const uint8_t* channel = &channels[0];
 
   #if IS_ROOT_NODE
     am_addr_t printMsgId;
@@ -66,6 +69,10 @@ implementation {
    * Radio started, start watchdog timer on the root node to wait for others.
    */
   event void AMControl.startDone(error_t err) {
+    #if DEBUG
+      uint8_t i;
+    #endif
+
     if (err == SUCCESS) {
       #if IS_ROOT_NODE
         // Wait for the other nodes to start up
@@ -79,6 +86,14 @@ implementation {
       DPRINTF(("Couldn't start the radio. (Code: %u)\n", err));
       call AMControl.start();
     }
+
+    #if DEBUG
+      DPRINTF(("Channel list: "));
+      for (i=0; i < (sizeof(channels) / sizeof (channels[0])); i++) {
+        DPRINTF(("%u ",channels[i]));
+      }
+      DPRINTF(("\n"));
+    #endif
   }
 
 
@@ -109,6 +124,7 @@ implementation {
       post printCollectedData();
     #endif
 
+    DPRINTF(("Sending on channel %u.\n", *channel));
     result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
     if (result != SUCCESS) {
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
@@ -125,6 +141,11 @@ implementation {
   event void AMSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
       DPRINTF(("Error sending data. Code: %u.\n", result));
+    }
+    if(TOS_NODE_ID == NODE_COUNT) {
+      // last node switches right after sending
+      DPRINTF(("Switching channel...\n"));
+      switch_channel();
     }
     // reset RSSI values
     memcpy(rssiMsg->rssi, rssi_template, NODE_COUNT+1);
@@ -159,18 +180,74 @@ implementation {
       printMsg = *pl;
       post printCollectedData();
       call WatchDogTimer.startOneShot(WATCHDOG_TOLERANCE);
-      if (lastSeenNodeID == NODE_COUNT) {
-        DPRINTF(("Yeah! It's me now! The ROOT NODE! hehehe.\n"));
+
+    #else
+      // send if it was my predecessor's turn
+      if (lastSeenNodeID == TOS_NODE_ID - 1) {
+        DPRINTF(("Yeah! It's me now!\n"));
         post sendRssi();
       }
-    #else
-    // if this was my predecessor, turn off watchdog and start SendDelayTimer
-    if (lastSeenNodeID == TOS_NODE_ID - 1) {
-      DPRINTF(("Yeah! It's me now!\n"));
-      post sendRssi();
-    }
+
     #endif
+
+    if (lastSeenNodeID == NODE_COUNT) {
+      DPRINTF(("Switching channel...\n"));
+      // last node switches in AMSend.sendDone
+      switch_channel();
+    }
+
     return msg;
+  }
+
+
+
+  /* * Channel switching * * * * * * * * * * * * * * * * * * * * * * */
+
+
+  /**
+   * Switch radio to next channel.
+   */
+  inline void switch_channel() {
+    // Bail out if there is just one channel in the list
+    // Attention! See comment about sizeof below!
+    if (sizeof(channels) == 1)
+      return;
+
+    DPRINTF(("Old channel: %u\n", *channel));
+
+    // Attention! This only works because uint8_t has 1 byte!
+    // Generic alternative: sizeof(channels) / sizeof(channels[0])
+    if (channel == &channels[sizeof(channels) - 1]) {
+      channel = &channels[0];
+    } else {
+      ++channel;
+    }
+
+    DPRINTF(("Next channel: %u\n", *channel));
+
+    call CC2420Config.setChannel(*channel);
+    call CC2420Config.sync();
+  }
+
+
+  /**
+   * Event fired when channel switching is complete.
+   */
+  event void CC2420Config.syncDone(error_t result) {
+    if (result != SUCCESS) {
+      DPRINTF(("Channel switching failed with code '%u'.\n", result));
+      // on error switch to first channel and wait
+      call CC2420Config.setChannel(channels[0]);
+      call CC2420Config.sync();
+      return;
+    }
+
+    DPRINTF(("Switched channel to '%u'\n", *channel));
+
+    #if IS_ROOT_NODE
+      // switching before root node sends => it's always its term here.
+      post sendRssi();
+    #endif
   }
 
 

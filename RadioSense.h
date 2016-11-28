@@ -17,6 +17,9 @@ enum {
   #endif
 };
 
+// set channels to switch through
+static const uint8_t channels[] = {CHANNEL_LIST};
+
 // chose a number well above possible RSSI values but not 127
 // as that might have a different meaning somewhere else.
 static const int8_t rssi_template[32] = {81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81};

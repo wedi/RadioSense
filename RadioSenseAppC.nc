@@ -11,6 +11,7 @@ implementation {
   components LedsC;
   components ActiveMessageC;
   components CC2420PacketC;
+  components CC2420ControlC;
   components new AMSenderC(AM_MSG_T_RSSI);
   components new AMReceiverC(AM_MSG_T_RSSI);
 
@@ -29,6 +30,7 @@ implementation {
   App.AMControl -> ActiveMessageC;
   App.AMPacket -> ActiveMessageC;
   App.CC2420Packet -> CC2420PacketC;
+  App.CC2420Config -> CC2420ControlC.CC2420Config;
   App.AMSend -> AMSenderC;
   App.Receive -> AMReceiverC;
 
