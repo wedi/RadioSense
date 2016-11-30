@@ -15,7 +15,7 @@ CFLAGS += -DDEBUG=$(DEBUG)
 
 # IEEE802.15.4: the channel is between 11-26, TinyOS default is 26
 # Starting channel when channel switching is enabled.
-CHANNEL ?= 26
+CHANNEL ?= 24
 CFLAGS += -DCC2420_DEF_CHANNEL=$(CHANNEL)
 
 # Transmit power between 1-31, TinyOS default is 31
