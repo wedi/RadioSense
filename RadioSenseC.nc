@@ -275,6 +275,7 @@ implementation {
     DPRINTF(("Reporting home...\n"));
     #if DEBUG
     DPRINTF(("NodeID %u\n", recvdMsgSenderID));
+    DPRINTF(("LastSeenNodeID %u\n", lastSeenNodeID));
     DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
     DPRINTF(("RSSI["));
     for (i = 0; i < NODE_COUNT; ++i) {
