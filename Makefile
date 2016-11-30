@@ -28,7 +28,7 @@ CFLAGS += -DNODE_COUNT=$(NODE_COUNT)
 
 # List of channels to switch between
 # format: comma separated list (c array declaration without {})
-CHANNEL_LIST ?= CHANNEL
+CHANNEL_LIST ?= $(CHANNEL)
 CFLAGS += -DCHANNEL_LIST=$(CHANNEL_LIST)
 
 # Set the root node ID
