@@ -174,6 +174,7 @@ implementation {
 
     // root node prints RSSI
     #if IS_ROOT_NODE
+      recvdMsgSenderID = lastSeenNodeID;
       pl = (msg_rssi_t*) payload;
       recvdMsg = *pl;
       post printCollectedData();
