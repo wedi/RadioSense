@@ -37,8 +37,8 @@ implementation {
   const uint8_t* channel = &channels[0];
 
   #if IS_ROOT_NODE
-    am_addr_t printMsgId;
-    msg_rssi_t printMsg;
+    am_addr_t recvdMsgSenderID;
+    msg_rssi_t recvdMsg;
   #endif
 
 
@@ -118,8 +118,8 @@ implementation {
 
     #if IS_ROOT_NODE
       // root node prints its own RSSI array
-      printMsgId = TOS_NODE_ID;
-      printMsg = *rssiMsg;
+      recvdMsgSenderID = TOS_NODE_ID;
+      recvdMsg = *rssiMsg;
       post printCollectedData();
     #endif
 
@@ -174,9 +174,8 @@ implementation {
 
     // root node prints RSSI
     #if IS_ROOT_NODE
-      printMsgId = lastSeenNodeID;
       pl = (msg_rssi_t*) payload;
-      printMsg = *pl;
+      recvdMsg = *pl;
       post printCollectedData();
       call WatchDogTimer.startOneShot(WATCHDOG_TOLERANCE);
 
@@ -274,23 +273,23 @@ implementation {
 
     DPRINTF(("Reporting home...\n"));
     #if DEBUG
-    DPRINTF(("NodeID %u\n", lastSeenNodeID));
+    DPRINTF(("NodeID %u\n", recvdMsgSenderID));
     DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
     DPRINTF(("RSSI["));
     for (i = 0; i < NODE_COUNT; ++i) {
-      DPRINTF(("%i ", printMsg.rssi[i]));
+      DPRINTF(("%i ", recvdMsg.rssi[i]));
     }
     DPRINTF(("]RSSI_END\n"));
 
     #else
 
     // ID + node count
-    call UartByte.send(printMsgId);
     call UartByte.send(NODE_COUNT);
+    call UartByte.send(recvdMsgSenderID);
 
     // RSSI
     for (i = 0; i < NODE_COUNT; ++i) {
-      call UartByte.send(printMsg.rssi[i]);
+      call UartByte.send(recvdMsg.rssi[i]);
     }
 
     // sync bytes (0xC0DE)
