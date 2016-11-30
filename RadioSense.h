@@ -24,10 +24,9 @@ static const uint8_t channels[] = {CHANNEL_LIST};
 
 // chose a number well above possible RSSI values but not 127
 // as that might have a different meaning somewhere else.
-static const int8_t rssi_template[32] = {81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81};
-#if NODE_COUNT > 32
- #error You need to extend `rssi_template` when using more than 32 nodes!
-#endif
+// Template to initialize rssi array with
+// https://gcc.gnu.org/onlinedocs/gcc/Designated-Inits.html#Designated-Inits
+static const int8_t rssi_template[NODE_COUNT] = { [0 ... NODE_COUNT-1] = 81 };
 
 typedef nx_struct msg_rssi_t {
   nx_int8_t rssi[NODE_COUNT];
