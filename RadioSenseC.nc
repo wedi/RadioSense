@@ -68,9 +68,6 @@ implementation {
    * Radio started, start watchdog timer on the root node to wait for others.
    */
   event void AMControl.startDone(error_t err) {
-    #if DEBUG
-      uint8_t i;
-    #endif
 
     if (err == SUCCESS) {
       #if IS_ROOT_NODE
@@ -88,10 +85,12 @@ implementation {
 
     #if DEBUG
       DPRINTF(("Channel list: "));
-      for (i=0; i < (sizeof(channels) / sizeof (channels[0])); i++) {
-        DPRINTF(("%u ",channels[i]));
-      }
+      do {
+        DPRINTF(("%u ",*channel));
+        ++channel;
+      } while(channel < &channels[NODE_COUNT]);
       DPRINTF(("\n"));
+      channel = &channels[0];
     #endif
   }
 
