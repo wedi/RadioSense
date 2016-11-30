@@ -34,8 +34,9 @@ CFLAGS += -DCHANNEL_LIST=$(CHANNEL_LIST)
 # Set the root node ID
 ROOT_NODE_ADDR ?= 1
 
-# This is only set on make telosb install.NODEID. Assume 1 as default.
-NODEID ?= 1
+# NODEID is only set on `make telosb install.NODEID`
+# Add NODEID=1 as argument to your make call to test the successfull
+#   compilation of the root node's code without installing it.
 ifeq ($(NODEID),$(ROOT_NODE_ADDR))
     CFLAGS += -DIS_ROOT_NODE=1
     TOSMAKE_BUILD_DIR=build_root/$(TARGET)
