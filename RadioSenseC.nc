@@ -32,7 +32,7 @@ implementation {
   /* * Global variables  * * * * * * * * * * * * * * * * * * * * * * */
 
   message_t packet;
-  msg_rssi_t* rssiMsg;
+  msg_rssi_t* outgoingMsg;
   am_addr_t lastSeenNodeID;
   const uint8_t* channel = &channels[0];
 
@@ -54,10 +54,10 @@ implementation {
     // start radio
     call AMControl.start();
 
-    rssiMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
+    outgoingMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
     // init packet
     // reset RSSI values
-    memcpy(rssiMsg->rssi, rssi_template, NODE_COUNT+1);
+    memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT+1);
     // make sure the node will not believe it's his turn
     // Neat: Setting unsigned var to -1 sets it to MAX
     lastSeenNodeID = -1;
@@ -119,7 +119,7 @@ implementation {
     #if IS_ROOT_NODE
       // root node prints its own RSSI array
       recvdMsgSenderID = TOS_NODE_ID;
-      recvdMsg = *rssiMsg;
+      recvdMsg = *outgoingMsg;
       post printCollectedData();
     #endif
 
@@ -147,7 +147,7 @@ implementation {
       switch_channel();
     }
     // reset RSSI values
-    memcpy(rssiMsg->rssi, rssi_template, NODE_COUNT+1);
+    memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT+1);
     call Leds.led2Off();
   }
 
@@ -170,7 +170,7 @@ implementation {
     DPRINTF(("Received message from %u with RSSI %d.\n", lastSeenNodeID, rssi));
 
     /* Save Rssi values to outgoing rssi msg */
-    rssiMsg->rssi[lastSeenNodeID-1] = rssi;
+    outgoingMsg->rssi[lastSeenNodeID-1] = rssi;
 
     // root node prints RSSI
     #if IS_ROOT_NODE
