@@ -54,10 +54,12 @@ implementation {
     // start radio
     call AMControl.start();
 
+    // make outgoingMsg pointing to the payload of the ActiveMessage being send via radio
     outgoingMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
-    // init packet
-    // reset RSSI values
+
+    // Initialize RSSI values
     memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT+1);
+
     // make sure the node will not believe it's his turn
     // Neat: Setting unsigned var to -1 sets it to MAX
     lastSeenNodeID = -1;
@@ -71,7 +73,7 @@ implementation {
 
     if (err == SUCCESS) {
       #if IS_ROOT_NODE
-        // Wait for the other nodes to start up
+        // Wait for the other nodes to start up, then send.
         call WatchDogTimer.startOneShot(WATCHDOG_INIT_TIME);
       #endif
       call Leds.set(0b010);  // red/green/blue
@@ -260,6 +262,7 @@ implementation {
 
   /**
    * Fires if waited too long for receiving a message from another node.
+   * Fires on startup after WATCHDOG_INIT_TIME is elapsed.
    */
   event void WatchDogTimer.fired() {
     DPRINTF(("Watchdog fired! Last node seen %u\n", lastSeenNodeID));
@@ -269,23 +272,23 @@ implementation {
 
 
   /**
-   * Prints a nodes RSSI array.
+   * Sends collected data to the serial.
    */
   task void printCollectedData() {
     int8_t i;
 
     call Leds.led0On();
 
-    DPRINTF(("Reporting home...\n"));
     #if DEBUG
-    DPRINTF(("NodeID %u\n", recvdMsgSenderID));
-    DPRINTF(("LastSeenNodeID %u\n", lastSeenNodeID));
-    DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
-    DPRINTF(("RSSI["));
-    for (i = 0; i < NODE_COUNT; ++i) {
-      DPRINTF(("%i ", recvdMsg.rssi[i]));
-    }
-    DPRINTF(("]RSSI_END\n"));
+      DPRINTF(("Reporting home...\n"));
+      DPRINTF(("NodeID %u\n", recvdMsgSenderID));
+      DPRINTF(("LastSeenNodeID %u\n", lastSeenNodeID));
+      DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
+      DPRINTF(("RSSI["));
+      for (i = 0; i < NODE_COUNT; ++i) {
+        DPRINTF(("%i ", recvdMsg.rssi[i]));
+      }
+      DPRINTF(("]RSSI_END\n"));
 
     #else
 
@@ -304,7 +307,7 @@ implementation {
     call UartByte.send(0xD);
     call UartByte.send(0xE);
 
-    #endif
+    #endif /* DEBUG else */
 
     call Leds.led0Off();
   }

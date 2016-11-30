@@ -2,11 +2,14 @@
 #define RADIOSENSE_H
 
 // Enable debug logging?
+// This is actually not needed but Python tought me
+// "explicit is better than implicit." :)
 #ifndef DEBUG
   #define DEBUG 0
 #endif
 
 enum {
+  // ActiveMessage type identifier
   AM_MSG_T_RSSI = 1,
 
   #if IS_ROOT_NODE
@@ -22,10 +25,11 @@ enum {
 // set channels to switch through
 static const uint8_t channels[] = {CHANNEL_LIST};
 
-// chose a number well above possible RSSI values but not 127
-// as that might have a different meaning somewhere else.
 // Template to initialize rssi array with
 // https://gcc.gnu.org/onlinedocs/gcc/Designated-Inits.html#Designated-Inits
+// Chose a number well above possible RSSI values.
+// Not using 127 here as that might have a different meaning somewhere else.
+// Not using 126 as it might be used as package delimiter on the serial line later
 static const int8_t rssi_template[NODE_COUNT] = { [0 ... NODE_COUNT-1] = 81 };
 
 typedef nx_struct msg_rssi_t {
