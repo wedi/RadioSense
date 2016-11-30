@@ -284,9 +284,9 @@ implementation {
 
     #else
 
-    // ID + node count
-    call UartByte.send(NODE_COUNT);
+    // ID + channel
     call UartByte.send(recvdMsgSenderID);
+    call UartByte.send(*channel);
 
     // RSSI
     for (i = 0; i < NODE_COUNT; ++i) {
