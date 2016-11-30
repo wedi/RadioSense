@@ -33,7 +33,6 @@ implementation {
 
   message_t packet;
   msg_rssi_t* rssiMsg;
-  //uint32_t seq = 0;
   am_addr_t lastSeenNodeID;
   const uint8_t* channel = &channels[0];
 
@@ -273,12 +272,10 @@ implementation {
 
     call Leds.led0On();
 
-    //am_addr_t id, uint32_t pkgSeq, nx_int8_t rssi[]
     DPRINTF(("Reporting home...\n"));
     #if DEBUG
     DPRINTF(("NodeID %u\n", lastSeenNodeID));
     DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
-    //DPRINTF(("SEQ %lu\n", printMsg.seq));
     DPRINTF(("RSSI["));
     for (i = 0; i < NODE_COUNT; ++i) {
       DPRINTF(("%i ", printMsg.rssi[i]));
@@ -290,8 +287,6 @@ implementation {
     // ID + node count
     call UartByte.send(printMsgId);
     call UartByte.send(NODE_COUNT);
-    // can be used to determine packet loss
-    //call UartByte.send(printMsg.seq);
 
     // RSSI
     for (i = 0; i < NODE_COUNT; ++i) {
