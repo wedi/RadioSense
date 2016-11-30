@@ -2,13 +2,14 @@ RSSI Measurement in a _Telos B_ Mote Network
 =============================================
 
 This software measures the Received Signal Strength Indicator (RSSI) of IEEE 802.15.4 radio links in a network
-of Telos B motes. It's capable of doing 100 measurements per second. It is build upon [TinyOS].
+of Telos B motes. It's capable of doing ~100 measurements per second. Build using [TinyOS].
 
 
 Assumptions
 ------------
-  - All nodes can see each other.
-
+- All nodes can see each other.
+- No package loss at the wrong moment™, when using multiple channels.  
+  (Actually a limitation being worked on.)
 
 Background
 -----------
