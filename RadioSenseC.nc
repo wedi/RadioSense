@@ -209,9 +209,14 @@ implementation {
   inline void switch_channel() {
     // Bail out if there is just one channel in the list
     // Attention! See comment about sizeof below!
-    if (sizeof(channels) == 1)
+    if (sizeof(channels) == 1) {
+      #if IS_ROOT_NODE
+        // root node sends after channel switching
+        // no channel switching so we do it here
+        post sendRssi();
+      #endif
       return;
-
+    }
     DPRINTF(("Old channel: %u\n", *channel));
 
     // Attention! This only works because uint8_t has 1 byte!
