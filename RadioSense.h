@@ -13,7 +13,9 @@ enum {
     // Milliseconds. Set higher than necessary to be able to see the watchdog
     // hitting from looking at the nodes. Could be as small as ~15 * NODE_COUNT.
     WATCHDOG_TOLERANCE = 500 * NODE_COUNT,
-    WATCHDOG_INIT_TIME = 2000
+
+    // Time to wait after startup to make sure all nodes are ready
+    WATCHDOG_INIT_TIME = 5000
   #endif
 };
 
