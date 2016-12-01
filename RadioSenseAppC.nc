@@ -14,6 +14,7 @@ implementation {
   components CC2420ControlC;
   components new AMSenderC(AM_MSG_T_RSSI);
   components new AMReceiverC(AM_MSG_T_RSSI);
+  components new TimerMilliC() as SendDelayTimer;
 
   #if IS_ROOT_NODE
     components new TimerMilliC() as WatchDogTimer;
@@ -33,6 +34,7 @@ implementation {
   App.CC2420Config -> CC2420ControlC.CC2420Config;
   App.AMSend -> AMSenderC;
   App.Receive -> AMReceiverC;
+  App.SendDelayTimer -> SendDelayTimer;
 
   #if IS_ROOT_NODE
     App.WatchDogTimer -> WatchDogTimer;

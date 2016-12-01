@@ -11,6 +11,7 @@ module RadioSenseC {
   uses interface CC2420Config;
   uses interface AMSend;
   uses interface Receive;
+  uses interface Timer<TMilli> as SendDelayTimer;
   #if IS_ROOT_NODE
     uses interface Timer<TMilli> as WatchDogTimer;
     uses interface UartByte;
@@ -35,6 +36,7 @@ implementation {
   msg_rssi_t* outgoingMsg;
   am_addr_t lastSeenNodeID;
   const uint8_t* channel = &channels[0];
+  int8_t resendCount = 0;
 
   #if IS_ROOT_NODE
     am_addr_t recvdMsgSenderID;
@@ -143,8 +145,15 @@ implementation {
   event void AMSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
       DPRINTF(("Error sending data. Code: %u.\n", result));
+      // TODO: maybe data should be resend here?
     }
     if(TOS_NODE_ID == NODE_COUNT) {
+      // let the last node repeat the msg to make sure all nodes switch.
+      if (++resendCount <= 3) {
+        post sendRssi();
+        return;
+      }
+      resendCount = 0;
       // last node switches right after sending
       DPRINTF(("Switching channel...\n"));
       switch_channel();
@@ -163,12 +172,19 @@ implementation {
    */
   event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
     int8_t rssi;
+    am_addr_t newLastSeenNodeID;
     #if IS_ROOT_NODE
       msg_rssi_t* pl;
     #endif
 
+    newLastSeenNodeID = call AMPacket.source(msg);
+    if (newLastSeenNodeID != lastSeenNodeID) {
+      lastSeenNodeID = newLastSeenNodeID;
+    } else {
+      return msg;
+    }
+
     rssi = call CC2420Packet.getRssi(msg);
-    lastSeenNodeID = call AMPacket.source(msg);
 
     DPRINTF(("Received message from %u with RSSI %d.\n", lastSeenNodeID, rssi));
 
@@ -254,10 +270,20 @@ implementation {
 
     #if IS_ROOT_NODE
       // switching before root node sends => it's always its term here.
-      post sendRssi();
+      //post sendRssi();
+      call SendDelayTimer.startOneShot(25);
     #endif
   }
 
+
+  /**
+   * Fires if waited too long for receiving a message from another node.
+   * Fires on startup after WATCHDOG_INIT_TIME is elapsed.
+   */
+  event void SendDelayTimer.fired() {
+    DPRINTF(("Send delay fired! Sending now."));
+    post sendRssi();
+  }
 
 
   /* * Root node only: Watchdog / serial * * * * * * * * * * * * * * */
