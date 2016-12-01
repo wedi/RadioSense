@@ -39,6 +39,7 @@ implementation {
   #if IS_ROOT_NODE
     am_addr_t recvdMsgSenderID;
     msg_rssi_t recvdMsg;
+    uint8_t recvdChannel;
   #endif
 
 
@@ -121,6 +122,7 @@ implementation {
       // root node prints its own RSSI array
       recvdMsgSenderID = TOS_NODE_ID;
       recvdMsg = *outgoingMsg;
+      recvdChannel = *channel;
       post printCollectedData();
     #endif
 
@@ -178,6 +180,7 @@ implementation {
       recvdMsgSenderID = lastSeenNodeID;
       pl = (msg_rssi_t*) payload;
       recvdMsg = *pl;
+      recvdChannel = *channel;
       post printCollectedData();
       call WatchDogTimer.startOneShot(WATCHDOG_TOLERANCE);
 
@@ -294,7 +297,7 @@ implementation {
 
     // ID + channel
     call UartByte.send(recvdMsgSenderID);
-    call UartByte.send(*channel);
+    call UartByte.send(recvdChannel);
 
     // RSSI
     for (i = 0; i < NODE_COUNT; ++i) {
