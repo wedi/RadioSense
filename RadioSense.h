@@ -12,13 +12,20 @@ enum {
   // ActiveMessage type identifier
   AM_MSG_T_RSSI = 1,
 
-  #if IS_ROOT_NODE
-    // Milliseconds. Set higher than necessary to be able to see the watchdog
-    // hitting from looking at the nodes. Could be as small as ~15 * NODE_COUNT.
-    WATCHDOG_TOLERANCE = 500 * NODE_COUNT,
+  // Watchdog time settings in milliseconds
 
+  // Time to wait per node before watchdog hits
+  WATCHDOG_TOLERANCE_PER_NODE = 25,
+
+  #if IS_ROOT_NODE
     // Time to wait after startup to make sure all nodes are ready
-    WATCHDOG_INIT_TIME = 5000
+    WATCHDOG_INIT_TIME = 5000,
+
+    // Additional fixed time before watchdog hits
+    // root node needs some more time for the channel switching
+    WATCHDOG_TOLERANCE = 10,
+  #else
+    WATCHDOG_TOLERANCE = 0,
   #endif
 };
 

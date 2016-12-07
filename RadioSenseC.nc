@@ -11,8 +11,8 @@ module RadioSenseC {
   uses interface CC2420Config;
   uses interface AMSend;
   uses interface Receive;
+  uses interface Timer<TMilli> as WatchDogTimer;
   #if IS_ROOT_NODE
-    uses interface Timer<TMilli> as WatchDogTimer;
     uses interface UartByte;
   #endif
 }
@@ -61,9 +61,10 @@ implementation {
     // Initialize RSSI values
     memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT+1);
 
-    // make sure the node will not believe it's his turn
-    // Neat: Setting unsigned var to -1 sets it to MAX
-    lastSeenNodeID = -1;
+    // set to next node in circle
+    //   * makes sure the node will not believe it's his turn
+    //   * will correctly calculate the initial wachdog period
+    lastSeenNodeID = (TOS_NODE_ID + 1) % NODE_COUNT;
   }
 
 
@@ -118,6 +119,10 @@ implementation {
     // indicate with blue LED
     call Leds.led2On();
 
+    // Stop watchdog. Prevents destroying the circle when the group
+    // comes back after a node was lost.
+    call WatchDogTimer.stop();
+
     #if IS_ROOT_NODE
       // root node prints its own RSSI array
       recvdMsgSenderID = TOS_NODE_ID;
@@ -163,14 +168,24 @@ implementation {
    */
   event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
     int8_t rssi;
+    uint8_t distanceToLast;
     #if IS_ROOT_NODE
       msg_rssi_t* pl;
     #endif
 
     rssi = call CC2420Packet.getRssi(msg);
     lastSeenNodeID = call AMPacket.source(msg);
-
     DPRINTF(("Received message from %u with RSSI %d.\n", lastSeenNodeID, rssi));
+
+    // reset watchdog
+    distanceToLast = (
+      TOS_NODE_ID - lastSeenNodeID + NODE_COUNT - 1) % NODE_COUNT;
+    call WatchDogTimer.startOneShot(
+      distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE);
+
+    DPRINTF(("Distance: %u\n", distanceToLast));
+    DPRINTF(("Watchdog timer: %u\n",
+      distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE));
 
     /* Save Rssi values to outgoing rssi msg */
     outgoingMsg->rssi[lastSeenNodeID-1] = rssi;
@@ -182,7 +197,6 @@ implementation {
       recvdMsg = *pl;
       recvdChannel = *channel;
       post printCollectedData();
-      call WatchDogTimer.startOneShot(WATCHDOG_TOLERANCE);
 
     #else
       // send if it was my predecessor's turn
@@ -259,10 +273,6 @@ implementation {
   }
 
 
-
-  /* * Root node only: Watchdog / serial * * * * * * * * * * * * * * */
-  #if IS_ROOT_NODE
-
   /**
    * Fires if waited too long for receiving a message from another node.
    * Fires on startup after WATCHDOG_INIT_TIME is elapsed.
@@ -270,9 +280,11 @@ implementation {
   event void WatchDogTimer.fired() {
     DPRINTF(("Watchdog fired! Last node seen %u\n", lastSeenNodeID));
     post sendRssi();
-    call WatchDogTimer.startOneShot(WATCHDOG_TOLERANCE);
   }
 
+
+  /* * Root node only: serial writing  * * * * * * * * * * * * * * * */
+  #if IS_ROOT_NODE
 
   /**
    * Sends collected data to the serial.

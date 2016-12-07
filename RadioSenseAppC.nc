@@ -14,9 +14,9 @@ implementation {
   components CC2420ControlC;
   components new AMSenderC(AM_MSG_T_RSSI);
   components new AMReceiverC(AM_MSG_T_RSSI);
+  components new TimerMilliC() as WatchDogTimer;
 
   #if IS_ROOT_NODE
-    components new TimerMilliC() as WatchDogTimer;
     components PlatformSerialC;
     components SerialStartC;
   #endif
@@ -33,9 +33,9 @@ implementation {
   App.CC2420Config -> CC2420ControlC.CC2420Config;
   App.AMSend -> AMSenderC;
   App.Receive -> AMReceiverC;
+  App.WatchDogTimer -> WatchDogTimer;
 
   #if IS_ROOT_NODE
-    App.WatchDogTimer -> WatchDogTimer;
     App.UartByte -> PlatformSerialC;
   #endif
 }
