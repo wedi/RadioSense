@@ -19,7 +19,8 @@ CHANNEL ?= 24
 CFLAGS += -DCC2420_DEF_CHANNEL=$(CHANNEL)
 
 # Transmit power between 1-31, TinyOS default is 31
-POWER ?= 31
+# Reducing power to 27. Manufacturer recommends it according to Matteo.
+POWER ?= 27
 CFLAGS += -DCC2420_DEF_RFPOWER=$(POWER)
 
 # Number of nodes in the setup
