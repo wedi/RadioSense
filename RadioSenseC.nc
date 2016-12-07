@@ -75,6 +75,14 @@ implementation {
 
     if (err == SUCCESS) {
       #if IS_ROOT_NODE
+        #if ! DEBUG
+            // send sync bytes (0xC0DE)
+            call UartByte.send(0xC);
+            call UartByte.send(0x0);
+            call UartByte.send(0xD);
+            call UartByte.send(0xE);
+        #endif
+
         // Wait for the other nodes to start up, then send.
         call WatchDogTimer.startOneShot(WATCHDOG_INIT_TIME);
       #endif
