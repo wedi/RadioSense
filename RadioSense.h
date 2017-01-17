@@ -15,7 +15,7 @@ enum {
   // Watchdog time settings in milliseconds
 
   // Time to wait per node before watchdog hits
-  WATCHDOG_TOLERANCE_PER_NODE = 25,
+  WATCHDOG_TOLERANCE_PER_NODE = 35,
 
   #if IS_ROOT_NODE
     // Time to wait after startup to make sure all nodes are ready
@@ -23,7 +23,7 @@ enum {
 
     // Additional fixed time before watchdog hits
     // root node needs some more time for the channel switching
-    WATCHDOG_TOLERANCE = 10,
+    WATCHDOG_TOLERANCE = 25,
   #else
     WATCHDOG_TOLERANCE = 0,
   #endif
