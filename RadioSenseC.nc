@@ -12,6 +12,7 @@ module RadioSenseC {
   uses interface AMSend;
   uses interface Receive;
   uses interface Timer<TMilli> as WatchDogTimer;
+  uses interface Timer<TMilli> as ErrorIndicatorResetTimer;
   #if IS_ROOT_NODE
     uses interface UartByte;
   #endif
@@ -87,6 +88,7 @@ implementation {
         call WatchDogTimer.startOneShot(WATCHDOG_INIT_TIME);
       #endif
       call Leds.set(0b010);  // red/green/blue
+      call ErrorIndicatorResetTimer.startPeriodic(125);
       DPRINTF(("Mote ready to rumble!\n"));
 
     } else {
@@ -143,6 +145,7 @@ implementation {
     result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
     if (result != SUCCESS) {
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
+      call Leds.led0On();
       // not resending, accept failure of cycle to avoid other problems
     } else {
       DPRINTF(("Sent!\n"));
@@ -155,6 +158,7 @@ implementation {
    */
   event void AMSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
+      call Leds.led0On();
       DPRINTF(("Error sending data. Code: %u.\n", result));
     }
     if(TOS_NODE_ID == NODE_COUNT) {
@@ -288,6 +292,10 @@ implementation {
   event void WatchDogTimer.fired() {
     DPRINTF(("Watchdog fired! Last node seen %u\n", lastSeenNodeID));
     post sendRssi();
+  }
+
+  event void ErrorIndicatorResetTimer.fired() {
+    call Leds.led0Off();
   }
 
 

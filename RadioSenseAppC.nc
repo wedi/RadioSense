@@ -15,6 +15,7 @@ implementation {
   components new AMSenderC(AM_MSG_T_RSSI);
   components new AMReceiverC(AM_MSG_T_RSSI);
   components new TimerMilliC() as WatchDogTimer;
+  components new TimerMilliC() as ErrorIndicatorResetTimer;
 
   #if IS_ROOT_NODE
     components PlatformSerialC;
@@ -34,6 +35,7 @@ implementation {
   App.AMSend -> AMSenderC;
   App.Receive -> AMReceiverC;
   App.WatchDogTimer -> WatchDogTimer;
+  App.ErrorIndicatorResetTimer -> ErrorIndicatorResetTimer;
 
   #if IS_ROOT_NODE
     App.UartByte -> PlatformSerialC;
