@@ -25,6 +25,7 @@ implementation {
   inline void switch_channel();
   task void sendRssi();
   #if IS_ROOT_NODE
+    inline void uart_sync();
     task void printCollectedData();
   #endif
 
@@ -77,11 +78,8 @@ implementation {
     if (err == SUCCESS) {
       #if IS_ROOT_NODE
         #if ! DEBUG
-            // send sync bytes (0xC0DE)
-            call UartByte.send(0xC);
-            call UartByte.send(0x0);
-            call UartByte.send(0xD);
-            call UartByte.send(0xE);
+            // send sync bytes
+            uart_sync();
         #endif
 
         // Wait for the other nodes to start up, then send.
@@ -302,6 +300,16 @@ implementation {
   /* * Root node only: serial writing  * * * * * * * * * * * * * * * */
   #if IS_ROOT_NODE
 
+
+  /**
+   * Sends sync bytes
+   */
+
+  inline void uart_sync() {
+    call UartByte.send(0xFE);
+    call UartByte.send(0xFF);
+  }
+
   /**
    * Sends collected data to the serial.
    */
@@ -333,11 +341,8 @@ implementation {
       call UartByte.send(recvdMsg.rssi[i]);
     }
 
-    // sync bytes (0xC0DE)
-    call UartByte.send(0xC);
-    call UartByte.send(0x0);
-    call UartByte.send(0xD);
-    call UartByte.send(0xE);
+    // send sync bytes
+    uart_sync();
 
     #endif /* DEBUG else */
 
