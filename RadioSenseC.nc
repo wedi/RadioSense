@@ -299,6 +299,7 @@ implementation {
    */
   task void printCollectedData() {
     int8_t i;
+    uint8_t node_count = NODE_COUNT;
 
     call Leds.led0On();
 
@@ -315,7 +316,8 @@ implementation {
 
     #else
 
-    // ID + channel
+    // NODE_COUNT + ID + channel
+    call UartByte.send(node_count);
     call UartByte.send(recvdMsgSenderID);
     call UartByte.send(recvdChannel);
 
