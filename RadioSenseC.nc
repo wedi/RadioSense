@@ -139,13 +139,13 @@ implementation {
       post printCollectedData();
     #endif
 
-    DPRINTF(("Sending on channel %u.\n", *channel));
+    DPRINTF(("Sending on channel %u...\n", *channel));
     result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
     if (result != SUCCESS) {
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
       // not resending, accept failure of cycle to avoid other problems
     } else {
-      DPRINTF(("Sending...\n"));
+      DPRINTF(("Sent!\n"));
     }
   }
 
@@ -163,7 +163,7 @@ implementation {
       switch_channel();
     }
     // reset RSSI values
-    memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT+1);
+    memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT + 1);
     call Leds.led2Off();
   }
 
@@ -303,9 +303,10 @@ implementation {
 
     #if DEBUG
       DPRINTF(("Reporting home...\n"));
+      DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
       DPRINTF(("NodeID %u\n", recvdMsgSenderID));
       DPRINTF(("LastSeenNodeID %u\n", lastSeenNodeID));
-      DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
+
       DPRINTF(("RSSI["));
       for (i = 0; i < NODE_COUNT; ++i) {
         DPRINTF(("%i ", recvdMsg.rssi[i]));
