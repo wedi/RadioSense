@@ -301,8 +301,6 @@ implementation {
     int8_t i;
     uint8_t node_count = NODE_COUNT;
 
-    call Leds.led0On();
-
     #if DEBUG
       DPRINTF(("Reporting home...\n"));
       DPRINTF(("NodeID %u\n", recvdMsgSenderID));
@@ -334,7 +332,6 @@ implementation {
 
     #endif /* DEBUG else */
 
-    call Leds.led0Off();
   }
 
   #endif /* IS_ROOT_NODE */
