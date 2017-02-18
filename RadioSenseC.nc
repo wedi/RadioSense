@@ -86,7 +86,6 @@ implementation {
         call WatchDogTimer.startOneShot(WATCHDOG_INIT_TIME);
       #endif
       call Leds.set(0b010);  // red/green/blue
-      call ErrorIndicatorResetTimer.startPeriodic(125);
       DPRINTF(("Mote ready to rumble!\n"));
 
     } else {
@@ -144,6 +143,7 @@ implementation {
     if (result != SUCCESS) {
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
       call Leds.led0On();
+      call ErrorIndicatorResetTimer.startOneShot(250);
       // not resending, accept failure of cycle to avoid other problems
     } else {
       DPRINTF(("Sent!\n"));
@@ -157,6 +157,7 @@ implementation {
   event void AMSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
       call Leds.led0On();
+      call ErrorIndicatorResetTimer.startOneShot(1250);
       DPRINTF(("Error sending data. Code: %u.\n", result));
     }
     if(TOS_NODE_ID == NODE_COUNT) {
