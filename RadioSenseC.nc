@@ -277,6 +277,15 @@ implementation {
 
     DPRINTF(("Switched channel to '%u'\n", *channel));
 
+    // start watchdog on last node to make sure it's node waiting there forever
+    if (TOS_NODE_ID == NODE_COUNT) {
+      call WatchDogTimer.startOneShot(
+        // dividing by two to speed up the time till channel switching
+        // continues. This is possible because it is very unlikely all
+        // messages of prevoius nodes get lost.
+        NODE_COUNT / 2 * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE);
+    }
+
     #if IS_ROOT_NODE
       // switching before root node sends => it's always its term here.
       post sendRssi();
