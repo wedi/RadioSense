@@ -334,6 +334,8 @@ implementation {
 
     // NODE_COUNT + ID + channel
     call UartByte.send(node_count);
+    // these vars are actually uint16_t but
+    // they will never grow bigger that uint8_t
     call UartByte.send(recvdMsgSenderID);
     call UartByte.send(recvdChannel);
 
