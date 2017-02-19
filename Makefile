@@ -6,6 +6,10 @@ include $(TINYOS_ROOT_DIR)/Makefile.include
 CFLAGS += -I$(TINYOS_OS_DIR)/lib/printf
 CFLAGS += -DNEW_PRINTF_SEMANTICS
 
+# reset component from 
+# https://github.com/tp-freeforall/prod/tree/163cc239d0da65040398b804cb7b381489e85e59/tos/chips/msp430
+CFLAGS += -I./swreset
+
 TOSH_DATA_LENGTH ?= 100
 CFLAGS += -DTOSH_DATA_LENGTH=$(TOSH_DATA_LENGTH)
 

@@ -12,6 +12,8 @@ enum {
   // ActiveMessage type identifier
   AM_MSG_T_RSSI = 1,
 
+  RF_FAILURE_THRESHOLD = 2,
+
   // Watchdog time settings in milliseconds
 
   // Time to wait per node before watchdog hits

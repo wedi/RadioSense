@@ -8,6 +8,7 @@ configuration RadioSenseAppC {
 implementation {
   components RadioSenseC as App;
   components MainC;
+  components SWResetC;
   components LedsC;
   components ActiveMessageC;
   components CC2420PacketC;
