@@ -4,6 +4,7 @@
 
 module RadioSenseC {
   uses interface Boot;
+  uses interface SWReset;
   uses interface Leds;
   uses interface SplitControl as AMControl;
   uses interface AMPacket;
@@ -23,6 +24,8 @@ implementation {
 /* * Declare tasks & functions * * * * * * * * * * * * * * * * * * * */
 
   inline void switch_channel();
+  inline void radio_failure(uint16_t led_time);
+  inline void reset_radio_failure();
   task void sendRssi();
   #if IS_ROOT_NODE
     inline void uart_sync();
@@ -36,7 +39,9 @@ implementation {
   message_t packet;
   msg_rssi_t* outgoingMsg;
   am_addr_t lastSeenNodeID;
+  uint8_t rf_failure_counter;
   const uint8_t* channel = &channels[0];
+  bool halted = FALSE;
 
   #if IS_ROOT_NODE
     am_addr_t recvdMsgSenderID;
@@ -85,12 +90,17 @@ implementation {
         // Wait for the other nodes to start up, then send.
         call WatchDogTimer.startOneShot(WATCHDOG_INIT_TIME);
       #endif
+
+      // reset failure counter
+      rf_failure_counter = 0;
+
       call Leds.set(0b010);  // red/green/blue
       DPRINTF(("Mote ready to rumble!\n"));
 
     } else {
       // error during radio startup, keep trying
       DPRINTF(("Couldn't start the radio. (Code: %u)\n", err));
+      call Leds.led2On();
       call AMControl.start();
     }
 
@@ -110,7 +120,32 @@ implementation {
    * Radio stopped. Unused.
    */
   event void AMControl.stopDone(error_t result) {
-    /* nothing. will not happen */
+    /* Just in case... */
+    call Leds.set(0b001);
+    call AMControl.start();
+  }
+
+
+  inline void radio_failure(uint16_t led_time) {
+    call Leds.led0On();
+    call ErrorIndicatorResetTimer.startOneShot(led_time);
+    rf_failure_counter++;
+    if (rf_failure_counter >= RF_FAILURE_THRESHOLD) {
+      halted = TRUE;
+      call WatchDogTimer.stop();
+      call AMControl.stop();
+      call ErrorIndicatorResetTimer.stop();
+      call Leds.set(0b001);
+      call SWReset.reset();
+    }
+  }
+
+  inline void reset_radio_failure() {
+    call ErrorIndicatorResetTimer.stop();
+    call Leds.led0Off();
+    call Leds.led2Off();
+    rf_failure_counter = 0;
+    halted = FALSE;
   }
 
 
@@ -122,6 +157,10 @@ implementation {
    */
   task void sendRssi() {
     error_t result;
+
+    if (halted) {
+      return;
+    }
 
     // indicate with blue LED
     call Leds.led2On();
@@ -141,9 +180,11 @@ implementation {
     DPRINTF(("Sending on channel %u...\n", *channel));
     result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
     if (result != SUCCESS) {
+      if (result == FAIL) {
+        rf_failure_counter = rf_failure_counter + 100;
+      }
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
-      call Leds.led0On();
-      call ErrorIndicatorResetTimer.startOneShot(250);
+      radio_failure(400);
       // not resending, accept failure of cycle to avoid other problems
     } else {
       DPRINTF(("Sent!\n"));
@@ -156,9 +197,10 @@ implementation {
    */
   event void AMSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
-      call Leds.led0On();
-      call ErrorIndicatorResetTimer.startOneShot(1250);
+      radio_failure(2200);
       DPRINTF(("Error sending data. Code: %u.\n", result));
+    } else {
+      reset_radio_failure();
     }
     if(TOS_NODE_ID == NODE_COUNT) {
       // last node switches right after sending
@@ -183,6 +225,10 @@ implementation {
     #if IS_ROOT_NODE
       msg_rssi_t* pl;
     #endif
+
+    if (halted) {
+      return msg;
+    }
 
     rssi = call CC2420Packet.getRssi(msg);
     lastSeenNodeID = call AMPacket.source(msg);
@@ -269,9 +315,8 @@ implementation {
   event void CC2420Config.syncDone(error_t result) {
     if (result != SUCCESS) {
       DPRINTF(("Channel switching failed with code '%u'.\n", result));
-      // on error switch to first channel and wait
-      call CC2420Config.setChannel(channels[0]);
-      call CC2420Config.sync();
+      radio_failure(100);
+      // Stay here and wait on error...
       return;
     }
 
@@ -304,6 +349,7 @@ implementation {
 
   event void ErrorIndicatorResetTimer.fired() {
     call Leds.led0Off();
+    call Leds.led1On();
   }
 
 

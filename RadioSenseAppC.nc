@@ -8,6 +8,7 @@ configuration RadioSenseAppC {
 implementation {
   components RadioSenseC as App;
   components MainC;
+  components SWResetC;
   components LedsC;
   components ActiveMessageC;
   components CC2420PacketC;
@@ -27,6 +28,7 @@ implementation {
   #endif
 
   App.Boot -> MainC;
+  App.SWReset -> SWResetC;
   App.Leds -> LedsC;
   App.AMControl -> ActiveMessageC;
   App.AMPacket -> ActiveMessageC;
