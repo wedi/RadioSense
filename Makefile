@@ -40,9 +40,26 @@ CFLAGS += -DCHANNEL_LIST=$(CHANNEL_LIST)
 # Set the root node ID
 ROOT_NODE_ADDR ?= 1
 
+# Set the sink node ID
+# defaults to ROOT_NODE
+SINK_NODE_ADDR ?= ROOT_NODE_ADDR
+
+
 # NODEID is only set on `make telosb install.NODEID`
 # Add NODEID=1 as argument to your make call to test the successfull
-#   compilation of the root node's code without installing it.
+#   compilation of the root/sink node's code without installing it.
+ifeq ($(NODEID),$(SINK_NODE_ADDR))
+    CFLAGS += -DIS_SINK_NODE=1
+    TOSMAKE_BUILD_DIR=build_sink/$(TARGET)
+    ifeq ($(shell test $(SINK_NODE_ADDR) -ge $(ROOT_NODE_ADDR); echo $$?),0)
+        CFLAGS += -DIS_PART_OF_CIRCLE
+    endif
+else
+    CFLAGS += -DIS_SINK_NODE=0
+endif
+
+
+
 ifeq ($(NODEID),$(ROOT_NODE_ADDR))
     CFLAGS += -DIS_ROOT_NODE=1
     TOSMAKE_BUILD_DIR=build_root/$(TARGET)

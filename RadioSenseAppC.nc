@@ -18,7 +18,7 @@ implementation {
   components new TimerMilliC() as WatchDogTimer;
   components new TimerMilliC() as ErrorIndicatorResetTimer;
 
-  #if IS_ROOT_NODE
+  #if IS_SINK_NODE
     components PlatformSerialC;
     components SerialStartC;
   #endif
@@ -39,7 +39,7 @@ implementation {
   App.WatchDogTimer -> WatchDogTimer;
   App.ErrorIndicatorResetTimer -> ErrorIndicatorResetTimer;
 
-  #if IS_ROOT_NODE
+  #if IS_SINK_NODE
     App.UartByte -> PlatformSerialC;
   #endif
 }
