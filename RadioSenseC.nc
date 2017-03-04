@@ -14,7 +14,7 @@ module RadioSenseC {
   uses interface Receive;
   uses interface Timer<TMilli> as WatchDogTimer;
   uses interface Timer<TMilli> as ErrorIndicatorResetTimer;
-  #if IS_ROOT_NODE
+  #if IS_SINK_NODE
     uses interface UartByte;
   #endif
 }
@@ -23,12 +23,12 @@ implementation {
 
 /* * Declare tasks & functions * * * * * * * * * * * * * * * * * * * */
 
-  inline void switch_channel();
-  inline void radio_failure(uint16_t led_time);
-  inline void reset_radio_failure();
+  static inline void switch_channel();
+  static inline void radio_failure(uint16_t const led_time);
+  static inline void reset_radio_failure();
   task void sendRssi();
-  #if IS_ROOT_NODE
-    inline void uart_sync();
+  #if IS_SINK_NODE
+    static inline void uart_sync();
     task void printCollectedData();
   #endif
 
@@ -43,7 +43,7 @@ implementation {
   const uint8_t* channel = &channels[0];
   bool halted = FALSE;
 
-  #if IS_ROOT_NODE
+  #if IS_SINK_NODE
     am_addr_t recvdMsgSenderID;
     msg_rssi_t recvdMsg;
     uint8_t recvdChannel;
@@ -81,12 +81,12 @@ implementation {
   event void AMControl.startDone(error_t err) {
 
     if (err == SUCCESS) {
-      #if IS_ROOT_NODE
-        #if ! DEBUG
-            // send sync bytes
-            uart_sync();
-        #endif
+      #if IS_SINK_NODE && ! DEBUG
+          // send sync bytes
+          uart_sync();
+      #endif
 
+      #if IS_ROOT_NODE
         // Wait for the other nodes to start up, then send.
         call WatchDogTimer.startOneShot(WATCHDOG_INIT_TIME);
       #endif
@@ -126,10 +126,10 @@ implementation {
   }
 
 
-  inline void radio_failure(uint16_t led_time) {
+static inline void radio_failure(uint16_t const led_time) {
     call Leds.led0On();
     call ErrorIndicatorResetTimer.startOneShot(led_time);
-    rf_failure_counter++;
+    ++rf_failure_counter;
     if (rf_failure_counter >= RF_FAILURE_THRESHOLD) {
       halted = TRUE;
       call WatchDogTimer.stop();
@@ -140,7 +140,7 @@ implementation {
     }
   }
 
-  inline void reset_radio_failure() {
+  static inline void reset_radio_failure() {
     call ErrorIndicatorResetTimer.stop();
     call Leds.led0Off();
     call Leds.led2Off();
@@ -169,7 +169,7 @@ implementation {
     // comes back after a node was lost.
     call WatchDogTimer.stop();
 
-    #if IS_ROOT_NODE
+    #if IS_SINK_NODE && defined IS_PART_OF_CIRCLE
       // root node prints its own RSSI array
       recvdMsgSenderID = TOS_NODE_ID;
       recvdMsg = *outgoingMsg;
@@ -220,11 +220,13 @@ implementation {
    * Event fires on new message recieved.
    */
   event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
-    int8_t rssi;
-    uint8_t distanceToLast;
-    #if IS_ROOT_NODE
+    #if IS_SINK_NODE
       msg_rssi_t* pl;
+    #else
+      uint8_t distanceToLast;
     #endif
+
+    int8_t rssi;
 
     if (halted) {
       return msg;
@@ -234,34 +236,35 @@ implementation {
     lastSeenNodeID = call AMPacket.source(msg);
     DPRINTF(("Received message from %u with RSSI %d.\n", lastSeenNodeID, rssi));
 
-    // reset watchdog
-    distanceToLast = (
-      TOS_NODE_ID - lastSeenNodeID + NODE_COUNT - 1) % NODE_COUNT;
-    call WatchDogTimer.startOneShot(
-      distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE);
+    #if ! IS_SINK_NODE
+      // reset watchdog
+      distanceToLast = (
+        TOS_NODE_ID - lastSeenNodeID + NODE_COUNT - 1) % NODE_COUNT;
+      call WatchDogTimer.startOneShot(
+        distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE);
 
-    DPRINTF(("Distance: %u\n", distanceToLast));
-    DPRINTF(("Watchdog timer: %u\n",
-      distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE));
+      DPRINTF(("Distance: %u\n", distanceToLast));
+      DPRINTF(("Watchdog timer: %u\n",
+        distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE));
 
+    #endif
     /* Save Rssi values to outgoing rssi msg */
     outgoingMsg->rssi[lastSeenNodeID-1] = rssi;
 
-    // root node prints RSSI
-    #if IS_ROOT_NODE
+    // sink node prints RSSI
+    #if IS_SINK_NODE
       recvdMsgSenderID = lastSeenNodeID;
       pl = (msg_rssi_t*) payload;
       recvdMsg = *pl;
       recvdChannel = *channel;
       post printCollectedData();
-
-    #else
+    #endif
+    #if ! IS_SINK_NODE || ( IS_SINK_NODE && IS_PART_OF_CIRCLE)
       // send if it was my predecessor's turn
       if (lastSeenNodeID == TOS_NODE_ID - 1) {
         DPRINTF(("Yeah! It's me now!\n"));
         post sendRssi();
       }
-
     #endif
 
     if (lastSeenNodeID == NODE_COUNT) {
@@ -281,7 +284,7 @@ implementation {
   /**
    * Switch radio to next channel.
    */
-  inline void switch_channel() {
+  static inline void switch_channel() {
     // Bail out if there is just one channel in the list
     // Attention! See comment about sizeof below!
     if (sizeof(channels) == 1) {
@@ -290,6 +293,7 @@ implementation {
         // no channel switching so we do it here
         post sendRssi();
       #endif
+
       return;
     }
     DPRINTF(("Old channel: %u\n", *channel));
@@ -353,15 +357,15 @@ implementation {
   }
 
 
-  /* * Root node only: serial writing  * * * * * * * * * * * * * * * */
-  #if IS_ROOT_NODE
+  /* * Sink node only: serial writing  * * * * * * * * * * * * * * * */
+  #if IS_SINK_NODE
 
 
   /**
    * Sends sync bytes
    */
 
-  inline void uart_sync() {
+  static inline void uart_sync() {
     call UartByte.send(0xFE);
     call UartByte.send(0xFF);
   }
@@ -387,10 +391,12 @@ implementation {
 
     #else
 
+    // data length
+    call UartByte.send(node_count + 3);
     // NODE_COUNT + ID + channel
-    call UartByte.send(node_count);
     // these vars are actually uint16_t but
-    // they will never grow bigger that uint8_t
+    // they will never grow bigger than uint8_t
+    call UartByte.send(node_count);
     call UartByte.send(recvdMsgSenderID);
     call UartByte.send(recvdChannel);
 
@@ -406,6 +412,6 @@ implementation {
 
   }
 
-  #endif /* IS_ROOT_NODE */
+  #endif /* IS_SINK_NODE */
 
 }
