@@ -17,7 +17,7 @@ enum {
   // Watchdog time settings in milliseconds
 
   // Time to wait per node before watchdog hits
-  WATCHDOG_TOLERANCE_PER_NODE = 35,
+  SLOT_TIME = 35,
 
   #if IS_ROOT_NODE
     // Time to wait after startup to make sure all nodes are ready
@@ -44,6 +44,19 @@ static const int8_t rssi_template[NODE_COUNT] = { [0 ... NODE_COUNT-1] = 81 };
 typedef nx_struct msg_rssi_t {
   nx_int8_t rssi[NODE_COUNT];
 } msg_rssi_t;
+
+
+#if IS_SINK_NODE
+
+  typedef nx_struct serial_msg_t {
+    nx_int8_t sender_id;
+    nx_int8_t channel;
+    nx_int8_t rss[NODE_COUNT];
+  } serial_msg_t;
+
+  static const serial_msg_t serial_msg_template = { .rss = { [0 ... NODE_COUNT-1] = 81 } } ;
+
+#endif
 
 #if DEBUG
   #define DPRINTF(x) printf x; printfflush()

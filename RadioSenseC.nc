@@ -16,6 +16,8 @@ module RadioSenseC {
   uses interface Timer<TMilli> as ErrorIndicatorResetTimer;
   #if IS_SINK_NODE
     uses interface UartByte;
+    uses interface Pool<serial_msg_t> as SerialMessagePool;
+    uses interface Queue<serial_msg_t*> as SerialSendQueue;
   #endif
 }
 
@@ -26,10 +28,12 @@ implementation {
   static inline void switch_channel();
   static inline void radio_failure(uint16_t const led_time);
   static inline void reset_radio_failure();
-  task void sendRssi();
+  task void send_broadcast();
   #if IS_SINK_NODE
     static inline void uart_sync();
-    task void printCollectedData();
+    static inline void send_serial_message(serial_msg_t* msg);
+    static serial_msg_t* serialAllocNewMessage();
+    task void send_collected_data();
   #endif
 
 
@@ -44,9 +48,7 @@ implementation {
   bool halted = FALSE;
 
   #if IS_SINK_NODE
-    am_addr_t recvdMsgSenderID;
-    msg_rssi_t recvdMsg;
-    uint8_t recvdChannel;
+    serial_msg_t* serial_msg;
   #endif
 
 
@@ -66,7 +68,7 @@ implementation {
     outgoingMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
 
     // Initialize RSSI values
-    memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT+1);
+    memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT + 1);
 
     // set to next node in circle
     //   * makes sure the node will not believe it's his turn
@@ -155,7 +157,7 @@ static inline void radio_failure(uint16_t const led_time) {
   /**
    * Send out our message
    */
-  task void sendRssi() {
+  task void send_broadcast() {
     error_t result;
 
     if (halted) {
@@ -171,10 +173,14 @@ static inline void radio_failure(uint16_t const led_time) {
 
     #if IS_SINK_NODE && defined IS_PART_OF_CIRCLE
       // root node prints its own RSSI array
-      recvdMsgSenderID = TOS_NODE_ID;
-      recvdMsg = *outgoingMsg;
-      recvdChannel = *channel;
-      post printCollectedData();
+      serial_msg = serialAllocNewMessage();
+      if (serial_msg == NULL){
+        return msg;
+      }
+      serial_msg->sender_id = TOS_NODE_ID;
+      serial_msg->channel = *channel;
+      serial_msg->rss = outgoingMsg->rssi;
+      send_serial_message(serial_msg);
     #endif
 
     DPRINTF(("Sending on channel %u...\n", *channel));
@@ -221,7 +227,7 @@ static inline void radio_failure(uint16_t const led_time) {
    */
   event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
     #if IS_SINK_NODE
-      msg_rssi_t* pl;
+      msg_rssi_t* rcvd_msg;
     #else
       uint8_t distanceToLast;
     #endif
@@ -241,29 +247,33 @@ static inline void radio_failure(uint16_t const led_time) {
       distanceToLast = (
         TOS_NODE_ID - lastSeenNodeID + NODE_COUNT - 1) % NODE_COUNT;
       call WatchDogTimer.startOneShot(
-        distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE);
+        distanceToLast * SLOT_TIME + WATCHDOG_TOLERANCE);
 
       DPRINTF(("Distance: %u\n", distanceToLast));
       DPRINTF(("Watchdog timer: %u\n",
-        distanceToLast * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE));
+        distanceToLast * SLOT_TIME + WATCHDOG_TOLERANCE));
 
     #endif
     /* Save Rssi values to outgoing rssi msg */
     outgoingMsg->rssi[lastSeenNodeID-1] = rssi;
 
-    // sink node prints RSSI
+    // sink node sends RSS values via serial
     #if IS_SINK_NODE
-      recvdMsgSenderID = lastSeenNodeID;
-      pl = (msg_rssi_t*) payload;
-      recvdMsg = *pl;
-      recvdChannel = *channel;
-      post printCollectedData();
+      serial_msg = serialAllocNewMessage();
+      if (serial_msg == NULL){
+        return msg;
+      }
+      serial_msg->sender_id = lastSeenNodeID;
+      serial_msg->channel = *channel;
+      rcvd_msg = (msg_rssi_t*) payload;
+      memcpy(serial_msg->rss, &rcvd_msg->rssi, NODE_COUNT);
+      send_serial_message(serial_msg);
     #endif
     #if ! IS_SINK_NODE || ( IS_SINK_NODE && IS_PART_OF_CIRCLE)
       // send if it was my predecessor's turn
       if (lastSeenNodeID == TOS_NODE_ID - 1) {
         DPRINTF(("Yeah! It's me now!\n"));
-        post sendRssi();
+        post send_broadcast();
       }
     #endif
 
@@ -291,7 +301,7 @@ static inline void radio_failure(uint16_t const led_time) {
       #if IS_ROOT_NODE
         // root node sends after channel switching
         // no channel switching so we do it here
-        post sendRssi();
+        post send_broadcast();
       #endif
 
       return;
@@ -332,12 +342,12 @@ static inline void radio_failure(uint16_t const led_time) {
         // dividing by two to speed up the time till channel switching
         // continues. This is possible because it is very unlikely all
         // messages of prevoius nodes get lost.
-        NODE_COUNT / 2 * WATCHDOG_TOLERANCE_PER_NODE + WATCHDOG_TOLERANCE);
+        NODE_COUNT / 2 * SLOT_TIME + WATCHDOG_TOLERANCE);
     }
 
     #if IS_ROOT_NODE
       // switching before root node sends => it's always its term here.
-      post sendRssi();
+      post send_broadcast();
     #endif
   }
 
@@ -348,7 +358,7 @@ static inline void radio_failure(uint16_t const led_time) {
    */
   event void WatchDogTimer.fired() {
     DPRINTF(("Watchdog fired! Last node seen %u\n", lastSeenNodeID));
-    post sendRssi();
+    post send_broadcast();
   }
 
   event void ErrorIndicatorResetTimer.fired() {
@@ -359,6 +369,37 @@ static inline void radio_failure(uint16_t const led_time) {
 
   /* * Sink node only: serial writing  * * * * * * * * * * * * * * * */
   #if IS_SINK_NODE
+
+
+  /* This function is called after the new message has been created
+   *  by the monitoringEvent() and it is ready to be sent over the serial.
+   *  It checks if the send quene is not exhausted and posts logSendTask
+   */
+  static inline void send_serial_message(serial_msg_t* msg) {
+    if (call SerialSendQueue.enqueue(msg) == SUCCESS) {
+      post send_collected_data();
+      return;
+    }
+    else {
+      call SerialMessagePool.put(msg);
+      return;
+    }
+  }
+
+  /*
+   * This function allocates a new empty message.
+   * It checks if there is memory left in the pool and the queue is not exhausted
+   */
+  static serial_msg_t* serialAllocNewMessage() {
+    if (call SerialMessagePool.empty()) {
+      return NULL;
+    }
+    serial_msg = call SerialMessagePool.get();
+
+    memcpy(serial_msg, &serial_msg_template, sizeof(serial_msg_t));
+
+    return serial_msg;
+  }
 
 
   /**
@@ -373,42 +414,44 @@ static inline void radio_failure(uint16_t const led_time) {
   /**
    * Sends collected data to the serial.
    */
-  task void printCollectedData() {
+  task void send_collected_data() {
     int8_t i;
-    uint8_t node_count = NODE_COUNT;
 
-    #if DEBUG
-      DPRINTF(("Reporting home...\n"));
-      DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
-      DPRINTF(("NodeID %u\n", recvdMsgSenderID));
-      DPRINTF(("LastSeenNodeID %u\n", lastSeenNodeID));
+    if (call SerialSendQueue.empty())
 
-      DPRINTF(("RSSI["));
+      return;
+
+    else {
+      serial_msg = call SerialSendQueue.head();
+
+      // data length (+ 1 for NODE_COUNT)
+      call UartByte.send(sizeof(serial_msg_t) + 1);
+      call UartByte.send(NODE_COUNT);
+      call UartByte.send(serial_msg->sender_id);
+      call UartByte.send(serial_msg->channel);
+      // RSSI
       for (i = 0; i < NODE_COUNT; ++i) {
-        DPRINTF(("%i ", recvdMsg.rssi[i]));
+        call UartByte.send(serial_msg->rss[i]);
       }
-      DPRINTF(("]RSSI_END\n"));
+      // send sync bytes
+      uart_sync();
 
-    #else
+      call SerialSendQueue.dequeue();
+      call SerialMessagePool.put(serial_msg);
 
-    // data length
-    call UartByte.send(node_count + 3);
-    // NODE_COUNT + ID + channel
-    // these vars are actually uint16_t but
-    // they will never grow bigger than uint8_t
-    call UartByte.send(node_count);
-    call UartByte.send(recvdMsgSenderID);
-    call UartByte.send(recvdChannel);
-
-    // RSSI
-    for (i = 0; i < NODE_COUNT; ++i) {
-      call UartByte.send(recvdMsg.rssi[i]);
+      post send_collected_data();
     }
 
-    // send sync bytes
-    uart_sync();
+    DPRINTF(("Reporting home...\n"));
+    DPRINTF(("NODE_COUNT %u\n", NODE_COUNT));
+    DPRINTF(("NodeID %u\n", recvdMsgSenderID));
+    DPRINTF(("LastSeenNodeID %u\n", lastSeenNodeID));
 
-    #endif /* DEBUG else */
+    DPRINTF(("RSSI["));
+    for (i = 0; i < NODE_COUNT; ++i) {
+      DPRINTF(("%i ", recvdMsg.rssi[i]));
+    }
+    DPRINTF(("]RSSI_END\n"));
 
   }
 

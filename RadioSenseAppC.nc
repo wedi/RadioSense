@@ -21,6 +21,8 @@ implementation {
   #if IS_SINK_NODE
     components PlatformSerialC;
     components SerialStartC;
+    components new PoolC(serial_msg_t, 10) as SerialMessagePool;
+    components new QueueC(serial_msg_t*, 10) as SerialSendQueue;
   #endif
 
   #if DEBUG
@@ -41,5 +43,7 @@ implementation {
 
   #if IS_SINK_NODE
     App.UartByte -> PlatformSerialC;
+    App.SerialMessagePool -> SerialMessagePool;
+    App.SerialSendQueue -> SerialSendQueue;
   #endif
 }
