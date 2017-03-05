@@ -1,10 +1,11 @@
 # Keep files from being added to the repo
 
-motes.json
+*motes.json
 
 # c build folder
 build/
 build_root/
+build_sink/
 
 # java build folder
 out/
