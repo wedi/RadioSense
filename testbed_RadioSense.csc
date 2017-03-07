@@ -58,6 +58,43 @@
       <moteinterface>org.contikios.cooja.mspmote.interfaces.MspDebugOutput</moteinterface>
       <moteinterface>org.contikios.cooja.mspmote.interfaces.SkyTemperature</moteinterface>
     </motetype>
+    <motetype>
+      org.contikios.cooja.mspmote.SkyMoteType
+      <identifier>sky3</identifier>
+      <description>Sink Node</description>
+      <firmware EXPORT="copy">[CONFIG_DIR]/build_sink/telosb/main.exe</firmware>
+      <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.Mote2MoteRelations</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.MoteAttributes</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspClock</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspMoteID</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.SkyButton</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.SkyFlash</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.SkyCoffeeFilesystem</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.Msp802154Radio</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspSerial</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.SkyLED</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspDebugOutput</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.SkyTemperature</moteinterface>
+    </motetype>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        org.contikios.cooja.interfaces.Position
+        <x>40.0</x>
+        <y>30.0</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        org.contikios.cooja.mspmote.interfaces.MspClock
+        <deviation>1.0</deviation>
+      </interface_config>
+      <interface_config>
+        org.contikios.cooja.mspmote.interfaces.MspMoteID
+        <id>0</id>
+      </interface_config>
+      <motetype_identifier>sky3</motetype_identifier>
+    </mote>
     <mote>
       <breakpoints />
       <interface_config>
@@ -289,6 +326,7 @@
       <mote>7</mote>
       <mote>8</mote>
       <mote>9</mote>
+      <mote>10</mote>
       <showRadioRXTX />
       <showRadioChannels />
       <showRadioHW />
@@ -297,7 +335,7 @@
     </plugin_config>
     <width>1440</width>
     <z>4</z>
-    <height>306</height>
+    <height>337</height>
     <location_x>0</location_x>
     <location_y>500</location_y>
   </plugin>
