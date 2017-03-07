@@ -10,9 +10,12 @@ implementation {
   components MainC;
   components SWResetC;
   components LedsC;
+
   components ActiveMessageC;
   components CC2420PacketC;
   components CC2420ControlC;
+  components CC2420CsmaC;
+  components CC2420ActiveMessageC;
   components new AMSenderC(AM_MSG_T_RSSI);
   components new AMReceiverC(AM_MSG_T_RSSI);
   components new TimerMilliC() as WatchDogTimer;
@@ -32,9 +35,12 @@ implementation {
   App.Boot -> MainC;
   App.SWReset -> SWResetC;
   App.Leds -> LedsC;
+
   App.AMControl -> ActiveMessageC;
   App.AMPacket -> ActiveMessageC;
   App.CC2420Packet -> CC2420PacketC;
+  App.PacketAcknowledgements -> CC2420ActiveMessageC;
+  App.RadioBackoff -> CC2420CsmaC;
   App.CC2420Config -> CC2420ControlC.CC2420Config;
   App.AMSend -> AMSenderC;
   App.Receive -> AMReceiverC;

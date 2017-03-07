@@ -3,22 +3,29 @@
 #include "printf.h"
 
 module RadioSenseC {
-  uses interface Boot;
-  uses interface SWReset;
-  uses interface Leds;
-  uses interface SplitControl as AMControl;
-  uses interface AMPacket;
-  uses interface CC2420Packet;
-  uses interface CC2420Config;
-  uses interface AMSend;
-  uses interface Receive;
-  uses interface Timer<TMilli> as WatchDogTimer;
-  uses interface Timer<TMilli> as ErrorIndicatorResetTimer;
-  #if IS_SINK_NODE
-    uses interface UartByte;
-    uses interface Pool<serial_msg_t> as SerialMessagePool;
-    uses interface Queue<serial_msg_t*> as SerialSendQueue;
-  #endif
+  uses {
+    interface Boot;
+    interface SWReset;
+    interface Leds;
+    interface Timer<TMilli> as ErrorIndicatorResetTimer;
+
+
+    interface SplitControl as AMControl;
+    interface AMPacket;
+    interface CC2420Packet;
+    interface CC2420Config;
+    interface RadioBackoff;
+    interface PacketAcknowledgements;
+    interface AMSend;
+    interface Receive;
+    interface Timer<TMilli> as WatchDogTimer;
+
+    #if IS_SINK_NODE
+      interface UartByte;
+      interface Pool<serial_msg_t> as SerialMessagePool;
+      interface Queue<serial_msg_t*> as SerialSendQueue;
+    #endif
+  }
 }
 
 implementation {
@@ -127,6 +134,18 @@ implementation {
     call AMControl.start();
   }
 
+  async event void RadioBackoff.requestCca(message_t *msg){
+    call RadioBackoff.setCca(FALSE);
+  }
+
+  async event void RadioBackoff.requestCongestionBackoff(message_t *msg){
+    call RadioBackoff.setCongestionBackoff(0);
+  }
+
+  async event void RadioBackoff.requestInitialBackoff(message_t *msg){
+    call RadioBackoff.setInitialBackoff(0);
+  }
+
 
 static inline void radio_failure(uint16_t const led_time) {
     call Leds.led0On();
@@ -184,6 +203,7 @@ static inline void radio_failure(uint16_t const led_time) {
     #endif
 
     DPRINTF(("Sending on channel %u...\n", *channel));
+    call PacketAcknowledgements.noAck(&packet);
     result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
     if (result != SUCCESS) {
       if (result == FAIL) {
