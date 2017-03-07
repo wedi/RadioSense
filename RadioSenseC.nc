@@ -194,11 +194,11 @@ static inline void radio_failure(uint16_t const led_time) {
       // root node prints its own RSSI array
       serial_msg = serialAllocNewMessage();
       if (serial_msg == NULL){
-        return msg;
+        return;
       }
       serial_msg->sender_id = TOS_NODE_ID;
       serial_msg->channel = *channel;
-      serial_msg->rss = outgoingMsg->rssi;
+      memcpy(serial_msg->rss, &outgoingMsg->rssi, NODE_COUNT);
       send_serial_message(serial_msg);
     #endif
 
