@@ -10,14 +10,14 @@
 
 enum {
   // ActiveMessage type identifier
-  AM_MSG_T_RSSI = 1,
+  AM_MSG_T_RSSI = 8,
 
   RF_FAILURE_THRESHOLD = 2,
 
   // Watchdog time settings in milliseconds
 
   // Time to wait per node before watchdog hits
-  SLOT_TIME = 35,
+  SLOT_TIME = 15,
 
   #if IS_ROOT_NODE
     // Time to wait after startup to make sure all nodes are ready
@@ -25,7 +25,7 @@ enum {
 
     // Additional fixed time before watchdog hits
     // root node needs some more time for the channel switching
-    WATCHDOG_TOLERANCE = 25,
+    WATCHDOG_TOLERANCE = 0,
   #else
     WATCHDOG_TOLERANCE = 0,
   #endif

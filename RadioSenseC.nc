@@ -16,9 +16,11 @@ module RadioSenseC {
     interface CC2420Config;
     interface RadioBackoff;
     interface PacketAcknowledgements;
-    interface AMSend;
-    interface Receive;
+    interface TimeSyncPacket<TMilli, uint32_t> as PacketTime;
+    interface TimeSyncAMSend<TMilli, uint32_t> as RadioSend;
+    interface Receive as RadioReceive;
     interface Timer<TMilli> as WatchDogTimer;
+    interface Alarm<TMilli, uint32_t> as SwitchTimer;
 
     #if IS_SINK_NODE
       interface UartByte;
@@ -53,6 +55,7 @@ implementation {
   uint8_t rf_failure_counter;
   const uint8_t* channel = &channels[0];
   bool halted = FALSE;
+  bool all_alone;
 
   #if IS_SINK_NODE
     serial_msg_t* serial_msg;
@@ -72,7 +75,7 @@ implementation {
     call AMControl.start();
 
     // make outgoingMsg pointing to the payload of the ActiveMessage being send via radio
-    outgoingMsg = (msg_rssi_t*) call AMSend.getPayload(&packet, sizeof(msg_rssi_t));
+    outgoingMsg = (msg_rssi_t*) call RadioSend.getPayload(&packet, sizeof(msg_rssi_t));
 
     // Initialize RSSI values
     memcpy(outgoingMsg->rssi, rssi_template, NODE_COUNT + 1);
@@ -204,13 +207,16 @@ static inline void radio_failure(uint16_t const led_time) {
 
     DPRINTF(("Sending on channel %u...\n", *channel));
     call PacketAcknowledgements.noAck(&packet);
-    result = call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(msg_rssi_t));
+    result = call RadioSend.send(
+                                 AM_BROADCAST_ADDR, &packet,
+                                 sizeof(msg_rssi_t),
+                                 call SwitchTimer.getNow());
     if (result != SUCCESS) {
       if (result == FAIL) {
         rf_failure_counter = rf_failure_counter + 100;
       }
       DPRINTF(("Radio did not accept message. Code: %u.\n", result));
-      radio_failure(400);
+      radio_failure(500);
       // not resending, accept failure of cycle to avoid other problems
     } else {
       DPRINTF(("Sent!\n"));
@@ -221,7 +227,7 @@ static inline void radio_failure(uint16_t const led_time) {
   /**
    * Broadcast sent
    */
-  event void AMSend.sendDone(message_t* msg, error_t result) {
+  event void RadioSend.sendDone(message_t* msg, error_t result) {
     if (result != SUCCESS) {
       radio_failure(2200);
       DPRINTF(("Error sending data. Code: %u.\n", result));
@@ -245,7 +251,7 @@ static inline void radio_failure(uint16_t const led_time) {
   /**
    * Event fires on new message recieved.
    */
-  event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
+  event message_t* RadioReceive.receive(message_t* msg, void* payload, uint8_t len) {
     #if IS_SINK_NODE
       msg_rssi_t* rcvd_msg;
     #else
@@ -253,32 +259,44 @@ static inline void radio_failure(uint16_t const led_time) {
     #endif
 
     int8_t rssi;
+    uint32_t now;
+    uint32_t packet_time;
+    uint32_t diff_sending_time = 0;
 
     if (halted) {
       return msg;
     }
 
-    rssi = call CC2420Packet.getRssi(msg);
     lastSeenNodeID = call AMPacket.source(msg);
+    /* Save Rssi values to outgoing rssi msg */
+    rssi = call CC2420Packet.getRssi(msg);
+    outgoingMsg->rssi[lastSeenNodeID-1] = rssi;
+
     DPRINTF(("Received message from %u with RSSI %d.\n", lastSeenNodeID, rssi));
 
-    #if ! IS_SINK_NODE
+    if (call PacketTime.isValid(msg)) {
+      packet_time = call PacketTime.eventTime(msg);
+      now = call SwitchTimer.getNow();
+      if (now > packet_time) {
+        diff_sending_time = now - packet_time;
+      }
+    }
+
+    #if ! IS_SINK_NODE || SINK_IN_CIRCLE
       // reset watchdog
       distanceToLast = (
         TOS_NODE_ID - lastSeenNodeID + NODE_COUNT - 1) % NODE_COUNT;
       call WatchDogTimer.startOneShot(
-        distanceToLast * SLOT_TIME + WATCHDOG_TOLERANCE);
+        distanceToLast * SLOT_TIME + WATCHDOG_TOLERANCE - diff_sending_time);
 
       DPRINTF(("Distance: %u\n", distanceToLast));
       DPRINTF(("Watchdog timer: %u\n",
-        distanceToLast * SLOT_TIME + WATCHDOG_TOLERANCE));
-
+        distanceToLast * SLOT_TIME + WATCHDOG_TOLERANCE - diff_sending_time));
     #endif
-    /* Save Rssi values to outgoing rssi msg */
-    outgoingMsg->rssi[lastSeenNodeID-1] = rssi;
 
     // sink node sends RSS values via serial
     #if IS_SINK_NODE
+      call Leds.led2On();
       serial_msg = serialAllocNewMessage();
       if (serial_msg == NULL){
         return msg;
@@ -288,8 +306,10 @@ static inline void radio_failure(uint16_t const led_time) {
       rcvd_msg = (msg_rssi_t*) payload;
       memcpy(serial_msg->rss, &rcvd_msg->rssi, NODE_COUNT);
       send_serial_message(serial_msg);
+      call Leds.led2Off();
     #endif
-    #if ! IS_SINK_NODE || ( IS_SINK_NODE && IS_PART_OF_CIRCLE)
+
+    #if ! IS_SINK_NODE || SINK_IN_CIRCLE
       // send if it was my predecessor's turn
       if (lastSeenNodeID == TOS_NODE_ID - 1) {
         DPRINTF(("Yeah! It's me now!\n"));
@@ -297,12 +317,10 @@ static inline void radio_failure(uint16_t const led_time) {
       }
     #endif
 
-    if (lastSeenNodeID == NODE_COUNT) {
-      DPRINTF(("Switching channel...\n"));
-      // last node switches in AMSend.sendDone
-      switch_channel();
+    // last node switches in RadioSend.sendDone
+    if (TOS_NODE_ID != NODE_COUNT) {
+      call SwitchTimer.start((NODE_COUNT - lastSeenNodeID) * SLOT_TIME);
     }
-
     return msg;
   }
 
@@ -310,6 +328,10 @@ static inline void radio_failure(uint16_t const led_time) {
 
   /* * Channel switching * * * * * * * * * * * * * * * * * * * * * * */
 
+
+  async event void SwitchTimer.fired(){
+    switch_channel();
+  }
 
   /**
    * Switch radio to next channel.
@@ -362,7 +384,7 @@ static inline void radio_failure(uint16_t const led_time) {
         // dividing by two to speed up the time till channel switching
         // continues. This is possible because it is very unlikely all
         // messages of prevoius nodes get lost.
-        NODE_COUNT / 2 * SLOT_TIME + WATCHDOG_TOLERANCE);
+        NODE_COUNT / 3 * SLOT_TIME + WATCHDOG_TOLERANCE);
     }
 
     #if IS_ROOT_NODE
@@ -444,8 +466,8 @@ static inline void radio_failure(uint16_t const led_time) {
     else {
       serial_msg = call SerialSendQueue.head();
 
-      // data length (+ 1 for NODE_COUNT)
-      call UartByte.send(sizeof(serial_msg_t) + 1);
+      // data length
+      call UartByte.send(sizeof(serial_msg_t));
       call UartByte.send(NODE_COUNT);
       call UartByte.send(serial_msg->sender_id);
       call UartByte.send(serial_msg->channel);
@@ -472,7 +494,6 @@ static inline void radio_failure(uint16_t const led_time) {
       DPRINTF(("%i ", recvdMsg.rssi[i]));
     }
     DPRINTF(("]RSSI_END\n"));
-
   }
 
   #endif /* IS_SINK_NODE */

@@ -52,7 +52,7 @@ ifeq ($(NODEID),$(SINK_NODE_ADDR))
     CFLAGS += -DIS_SINK_NODE=1
     TOSMAKE_BUILD_DIR=build_sink/$(TARGET)
     ifeq ($(shell test $(SINK_NODE_ADDR) -ge $(ROOT_NODE_ADDR); echo $$?),0)
-        CFLAGS += -DIS_PART_OF_CIRCLE
+        CFLAGS += -DSINK_IN_CIRCLE
     endif
 else
     CFLAGS += -DIS_SINK_NODE=0
